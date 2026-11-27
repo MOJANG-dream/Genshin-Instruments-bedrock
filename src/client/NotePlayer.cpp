@@ -9,10 +9,7 @@
 
 #include "mc/client/game/ClientInstance.h"
 #include "mc/client/sound/SoundEngine.h"
-#include "mc/deps/audio/PlaySoundOptions.h"
-#include "mc/client/player/LocalPlayer.h"
 
-#include <utility>
 
 namespace gi::client {
 namespace {
@@ -37,16 +34,15 @@ void playNote(InstrumentDef const& def, int cell, int transposeOctaves, float vo
     if (config.playLocally) {
         auto client = ll::service::bedrock::getClientInstance();
         if (client) {
-            ::PlaySoundOptions options{};
-            options.mName     = gi::soundNameFor(def, cell, config.useStereo);
-            options.mVolume   = volume;
-            options.mPitch    = gi::pitchFor(def, cell, transposeOctaves);
-            options.mLoopCount = 0;
-            if (auto* local = client->getLocalPlayer(); local != nullptr) {
-                options.mPosition = local->getPosition();
-            }
+            // playUI takes the three values directly; PlaySoundOptions cannot be
+            // copied across the module boundary (its ServerSoundHandle member is
+            // not exported), so the struct overload is unusable from a mod.
             auto engine = client->getSoundEngine();
-            engine->play(std::move(options));
+            engine->playUI(
+                gi::soundNameFor(def, cell, config.useStereo),
+                volume,
+                gi::pitchFor(def, cell, transposeOctaves)
+            );
         }
     }
 
