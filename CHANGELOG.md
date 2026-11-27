@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1
+
+修复 LeviLauncher 导入时报「manifest.json 无效或缺少必要字段」。
+
+- 发布包的 zip 里，模组自己的 `manifest.json` 现在写在最前面。此前 `zip -r` 把
+  `packs/RP/genshin_instruments/manifest.json` 排在前面，启动器会把资源包清单当成模组清单读取。
+- 构建产物里的模组版本不再是 `0.0.0`：release 用 tag 去掉 `v` 作为 `MOD_VERSION`。
+
 ## 0.1.0
 
 首个可运行的 Bedrock / LeviLamina 移植版。
