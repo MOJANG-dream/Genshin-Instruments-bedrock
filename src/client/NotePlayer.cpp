@@ -10,7 +10,7 @@
 #include "mc/client/game/ClientInstance.h"
 #include "mc/client/sound/SoundEngine.h"
 #include "mc/deps/audio/PlaySoundOptions.h"
-#include "mc/world/actor/player/LocalPlayer.h"
+#include "mc/client/player/LocalPlayer.h"
 
 #include <utility>
 
