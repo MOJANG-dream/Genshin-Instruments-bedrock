@@ -150,10 +150,10 @@ std::vector<ListenerPtr> gListeners;
 // --- Drawing primitives -----------------------------------------------------
 
 Font& defaultFont(MinecraftUIRenderContext& ctx) {
-    return ctx.mClient.getMinecraftGame_DEPRECATED()
-        .getFontRepository()
-        ->getFontFromFontType("default")
-        .getFont();
+    auto handle = ctx.mClient.getMinecraftGame_DEPRECATED()
+                      .getFontRepository()
+                      ->getFontFromFontType("default");
+    return *handle.mDefaultFont;
 }
 
 void fillRect(MinecraftUIRenderContext& ctx, float x, float y, float w, float h, Rgb rgb, float alpha = 1.f) {
@@ -191,7 +191,7 @@ void drawLabel(
 // --- State helpers (the *Locked ones require gMutex) ------------------------
 
 bool ownsTopLocked() {
-    return gClient && gScene && gClient->getSceneFactory().getCurrentSceneStack()->getTopScene() == gScene.get();
+    return gClient && gScene && gClient->getCurrentSceneStack()->getTopScene() == gScene.get();
 }
 
 // Drops everything the input path owns.
@@ -268,7 +268,7 @@ void closeLocked() {
     }
     bool const onTop = ownsTopLocked();
     if (onTop) {
-        gClient->getSceneFactory().getCurrentSceneStack()->schedulePopScreen(1);
+        gClient->getCurrentSceneStack()->schedulePopScreen(1);
         gClosing = true;
     }
     notifyScreenClosed();
@@ -496,7 +496,7 @@ void openSceneOnClientThread(std::string instrumentId, int transposeOctaves) {
         toPush = gScene;
     }
 
-    clientInstance->getSceneFactory().getCurrentSceneStack()->pushScreen(std::move(toPush), false);
+    clientInstance->getCurrentSceneStack()->pushScreen(std::move(toPush), false);
 }
 
 } // namespace
@@ -656,7 +656,7 @@ void InstrumentScreen::uninstall() {
         // The borrowed dialog has to go before the scene hooks come off,
         // otherwise nothing cancels its render and it stays on screen.
         if (gScene && gClient && ownsTopLocked() && !gClosing) {
-            gClient->getSceneFactory().getCurrentSceneStack()->schedulePopScreen(1);
+            gClient->getCurrentSceneStack()->schedulePopScreen(1);
         }
         clearLocked();
     }

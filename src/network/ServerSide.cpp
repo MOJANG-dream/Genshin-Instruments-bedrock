@@ -1,4 +1,4 @@
-#include "network/ServerSide.h"
+﻿#include "network/ServerSide.h"
 
 #include "instrument/Instruments.h"
 #include "mod/Config.h"
@@ -106,7 +106,7 @@ void relayNote(::Player& player, gi::InstrumentDef const& def, int cell, int tra
 
 class HelloHandler final : public ll::network::PacketHandlerBase<HelloHandler, HelloPacket> {
 public:
-    void handlePacket(::NetworkIdentifier const& netId, ::NetEventCallback&, HelloPacket const& packet) const {
+    void handlePacket(::NetworkIdentifier const& netId, ::NetEventCallback&, ::ll::network::PacketSide, HelloPacket const& packet) const {
         if (packet.mProtocol != kProtocolVersion) {
             return;
         }
@@ -119,7 +119,7 @@ public:
 
 class PlayNoteHandler final : public ll::network::PacketHandlerBase<PlayNoteHandler, PlayNotePacket> {
 public:
-    void handlePacket(::NetworkIdentifier const& netId, ::NetEventCallback&, PlayNotePacket const& packet) const {
+    void handlePacket(::NetworkIdentifier const& netId, ::NetEventCallback&, ::ll::network::PacketSide, PlayNotePacket const& packet) const {
         if (!packet.mValid) {
             return;
         }
@@ -140,7 +140,7 @@ public:
 
 class CloseHandler final : public ll::network::PacketHandlerBase<CloseHandler, CloseInstrumentPacket> {
 public:
-    void handlePacket(::NetworkIdentifier const&, ::NetEventCallback&, CloseInstrumentPacket const&) const {
+    void handlePacket(::NetworkIdentifier const&, ::NetEventCallback&, ::ll::network::PacketSide, CloseInstrumentPacket const&) const {
         // Nothing to release server side yet; the packet exists so the server can
         // stop tracking a player as "performing" once that is added.
     }
@@ -207,3 +207,4 @@ void uninstallServerSide() {
 }
 
 } // namespace gi::network
+

@@ -1,4 +1,4 @@
-#include "client/ClientSide.h"
+﻿#include "client/ClientSide.h"
 
 #ifdef LL_PLAT_C
 
@@ -22,7 +22,7 @@ int                                 gCycleIndex = 0;
 class OpenInstrumentHandler final
 : public ll::network::PacketHandlerBase<OpenInstrumentHandler, net::OpenInstrumentPacket> {
 public:
-    void handlePacket(::NetworkIdentifier const&, ::NetEventCallback&, net::OpenInstrumentPacket const& packet) const {
+    void handlePacket(::NetworkIdentifier const&, ::NetEventCallback&, ::ll::network::PacketSide, net::OpenInstrumentPacket const& packet) const {
         if (gi::findInstrument(packet.mInstrument) == nullptr) {
             return;
         }
@@ -107,3 +107,4 @@ void uninstallClientSide() {
 } // namespace gi::client
 
 #endif // LL_PLAT_C
+
