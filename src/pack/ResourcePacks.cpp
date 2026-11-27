@@ -11,6 +11,7 @@
 #include "mc/resources/PackInstance.h"
 #include "mc/resources/ResourcePackManager.h"
 #include "mc/resources/ResourcePackRepository.h"
+#include "mc/resources/ResourcePackSelectionPolicy.h"
 #include "mc/resources/ResourcePackStack.h"
 
 #include <optional>
@@ -51,7 +52,11 @@ LL_TYPE_INSTANCE_HOOK(
 
     // Only the resource pack goes onto the composed stack: that stack is the
     // client's resource stack, and behaviour packs are resolved per world.
-    auto pack = repo->getResourcePackSatisfiesPackId(PackIdVersion::fromString(kResourcePackIdVersion), true);
+    auto pack = repo->getResourcePackSatisfiesPackId(
+        PackIdVersion::fromString(kResourcePackIdVersion),
+        false,
+        ::ResourcePackSelectionPolicy::PreferDevelopmentIfSameOrNewer
+    );
     if (!pack) {
         return;
     }
