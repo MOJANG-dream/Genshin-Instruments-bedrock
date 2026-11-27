@@ -2,6 +2,9 @@
 
 #include "instrument/Instruments.h"
 
+#include "mc/deps/core/utility/BinaryStream.h"
+#include "mc/deps/core/utility/ReadOnlyBinaryStream.h"
+
 #include <algorithm>
 #include <utility>
 
