@@ -1,4 +1,4 @@
-﻿#include "network/ServerSide.h"
+#include "network/ServerSide.h"
 
 #include "instrument/Instruments.h"
 #include "mod/Config.h"
@@ -11,6 +11,7 @@
 
 #include "mc/deps/core/string/HashedString.h"
 #include "mc/network/PacketSender.h"
+#include "mc/server/ServerPlayer.h"
 #include "mc/network/ServerNetworkHandler.h"
 #include "mc/network/packet/PlaySoundPacket.h"
 #include "mc/world/Minecraft.h"
@@ -104,9 +105,9 @@ void relayNote(::Player& player, gi::InstrumentDef const& def, int cell, int tra
 
 // --- packet handlers ---------------------------------------------------------
 
-class HelloHandler final : public ll::network::PacketHandlerBase<HelloHandler, HelloPacket> {
+class HelloHandler final : public ll::network::PacketHandlerBase<HelloHandler, net::HelloPacket> {
 public:
-    void handlePacket(::NetworkIdentifier const& netId, ::NetEventCallback&, ::ll::network::PacketSide, HelloPacket const& packet) const {
+    void handlePacket(::NetworkIdentifier const& netId, ::NetEventCallback&, ::ll::network::PacketSide, net::HelloPacket const& packet) const {
         if (packet.mProtocol != kProtocolVersion) {
             return;
         }
@@ -117,9 +118,9 @@ public:
     }
 };
 
-class PlayNoteHandler final : public ll::network::PacketHandlerBase<PlayNoteHandler, PlayNotePacket> {
+class PlayNoteHandler final : public ll::network::PacketHandlerBase<PlayNoteHandler, net::PlayNotePacket> {
 public:
-    void handlePacket(::NetworkIdentifier const& netId, ::NetEventCallback&, ::ll::network::PacketSide, PlayNotePacket const& packet) const {
+    void handlePacket(::NetworkIdentifier const& netId, ::NetEventCallback&, ::ll::network::PacketSide, net::PlayNotePacket const& packet) const {
         if (!packet.mValid) {
             return;
         }
@@ -138,9 +139,9 @@ public:
     }
 };
 
-class CloseHandler final : public ll::network::PacketHandlerBase<CloseHandler, CloseInstrumentPacket> {
+class CloseHandler final : public ll::network::PacketHandlerBase<CloseHandler, net::CloseInstrumentPacket> {
 public:
-    void handlePacket(::NetworkIdentifier const&, ::NetEventCallback&, ::ll::network::PacketSide, CloseInstrumentPacket const&) const {
+    void handlePacket(::NetworkIdentifier const&, ::NetEventCallback&, ::ll::network::PacketSide, net::CloseInstrumentPacket const&) const {
         // Nothing to release server side yet; the packet exists so the server can
         // stop tracking a player as "performing" once that is added.
     }
@@ -167,7 +168,7 @@ void onUseItem(ll::event::player::PlayerUseItemEvent& event) {
     // Swallow the use so the item never enters a vanilla use state.
     event.cancel();
 
-    OpenInstrumentPacket packet;
+    net::OpenInstrumentPacket packet;
     packet.mInstrument       = instrument;
     packet.mTransposeOctaves = modConfig().transposeOctaves;
     packet.sendTo(event.self());
