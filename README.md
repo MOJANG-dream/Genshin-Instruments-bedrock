@@ -57,7 +57,18 @@ xmake -y
 2. 资源包会自动压进客户端资源包栈；行为包需要在世界的「行为包」里启用，
    物品才会出现（不改世界设置也可以，用 `V` 键开界面）
 3. `lip install github.com/MOJANG-dream/Genshin-Instruments-bedrock` 也可以，
-   前提是对应版本已经发布 release
+   已发布的版本会带 `client` / `server` 两个 zip
+
+## 发布
+
+给仓库发一个 Release（tag 形如 `v0.1.0`，与 `lip.toml` 的 `version` 对齐）就会触发
+[`.github/workflows/release.yml`](.github/workflows/release.yml)，构建并上传：
+
+- `Genshin-Instruments-bedrock-client-windows-x64.zip`
+- `Genshin-Instruments-bedrock-server-windows-x64.zip`
+
+> 这些构建产物来自 LeviLamina 26.60.9 + LLVM 22 + MSVC 的 CI 编译；仓库内的代码尚未在
+> 实机（BDS + 客户端）上跑过完整流程，遇到问题请开 issue。
 
 > 资源包 / 行为包的 uuid + version 一旦改动内容就要同步 bump
 > （`src/pack/ResourcePacks.cpp` 与两个 `manifest.json`），否则客户端会用缓存里的旧包。
