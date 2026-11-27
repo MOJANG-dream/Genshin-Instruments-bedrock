@@ -16,6 +16,8 @@ if not has_config("vs_runtime") then
     set_runtimes("MD")
 end
 
+local modVersion = os.getenv("MOD_VERSION") or "0.1.0"
+
 target("genshin-instruments")
     add_rules("@levibuildscript/linkrule")
     add_rules("@levibuildscript/modpacker")
@@ -39,6 +41,7 @@ target("genshin-instruments")
         set_toolchains("clang-cl")
     end
     add_packages("levilamina")
+    set_version(modVersion)
     set_kind("shared")
     set_languages("c++20")
     set_symbols("debug")

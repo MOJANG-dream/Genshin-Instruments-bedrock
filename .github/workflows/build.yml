@@ -12,6 +12,10 @@ jobs:
           - server
           - client
     steps:
+
+      - name: Resolve version
+        shell: bash
+        run: echo "MOD_VERSION=0.0.0-dev" >> "$GITHUB_ENV"
       - uses: actions/checkout@v7
 
       # The audio samples and item icons are GPL-3.0 assets of the original Java

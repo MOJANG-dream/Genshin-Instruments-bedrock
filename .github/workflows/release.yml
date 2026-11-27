@@ -12,6 +12,10 @@ jobs:
           - server
           - client
     steps:
+
+      - name: Resolve version
+        shell: bash
+        run: echo "MOD_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v7
 
       # The audio samples and item icons are GPL-3.0 assets of the original Java
@@ -94,8 +98,16 @@ jobs:
       - run: |
           cp CHANGELOG.md LICENSE README.md artifact/
 
+      # The launcher validates a mod archive by taking the FIRST manifest.json it
+      # meets as the mod manifest; the resource pack inside packs/ also has one.
+      # So the mod manifest must be written before anything else.
       - run: |
-          zip -r ../${{ github.event.repository.name }}-${{ matrix.target_type }}-windows-x64.zip *
+          set -euo pipefail
+          out="../${{ github.event.repository.name }}-${{ matrix.target_type }}-windows-x64.zip"
+          rm -f "$out"
+          zip -X "$out" genshin-instruments/manifest.json
+          zip -rX "$out" genshin-instruments -x 'genshin-instruments/manifest.json'
+          zip -X "$out" README.md LICENSE CHANGELOG.md
         working-directory: artifact
 
       - uses: softprops/action-gh-release@v3
