@@ -99,23 +99,45 @@ mce::Color color(Rgb c, float a = 1.f) { return {c.r, c.g, c.b, a}; }
 
 constexpr float kCellW = 34.f, kCellH = 26.f, kGap = 4.f;
 constexpr float kStrideX = kCellW + kGap, kStrideY = kCellH + kGap;
-constexpr float kGridW = static_cast<float>(gi::kCols) * kCellW + static_cast<float>(gi::kCols - 1) * kGap;
-constexpr float kGridH = static_cast<float>(gi::kRows) * kCellH + static_cast<float>(gi::kRows - 1) * kGap;
 constexpr float kPad = 16.f, kHeaderH = 48.f, kFooterH = 20.f;
-constexpr float kPanelW = kGridW + kPad * 2.f;
-constexpr float kPanelH = kHeaderH + kGridH + kFooterH;
+
+// The grid shape belongs to the instrument (three octaves of keys, or the djem
+// djem drum's two rows of four), so the panel is measured per instrument.
+float gridWidthFor(gi::InstrumentDef const& def) {
+    return static_cast<float>(gi::colsOf(def)) * kCellW + static_cast<float>(gi::colsOf(def) - 1) * kGap;
+}
+
+float gridHeightFor(gi::InstrumentDef const& def) {
+    return static_cast<float>(gi::rowsOf(def)) * kCellH + static_cast<float>(gi::rowsOf(def) - 1) * kGap;
+}
+
+float panelWidthFor(gi::InstrumentDef const& def) { return gridWidthFor(def) + kPad * 2.f; }
+
+float panelHeightFor(gi::InstrumentDef const& def) { return kHeaderH + gridHeightFor(def) + kFooterH; }
 
 struct Geometry {
     float left, top;
+    float panelW, panelH, gridH;
+    int   rows, cols;
     float gridX() const { return left + kPad; }
     float gridY() const { return top + kHeaderH; }
     float cellX(int col) const { return gridX() + static_cast<float>(col) * kStrideX; }
     float cellY(int row) const { return gridY() + static_cast<float>(row) * kStrideY; }
 };
 
-Geometry computeGeometry(ScreenView& view) {
-    auto& size = view.mSize;
-    return {(size->x - kPanelW) / 2.f, (size->y - kPanelH) / 2.f};
+Geometry computeGeometry(ScreenView& view, gi::InstrumentDef const& def) {
+    auto& size       = view.mSize;
+    float const panelW = panelWidthFor(def);
+    float const panelH = panelHeightFor(def);
+    return {
+        (size->x - panelW) / 2.f,
+        (size->y - panelH) / 2.f,
+        panelW,
+        panelH,
+        gridHeightFor(def),
+        gi::rowsOf(def),
+        gi::colsOf(def)
+    };
 }
 
 // --- Shared state ----------------------------------------------------------
@@ -137,7 +159,7 @@ std::chrono::steady_clock::time_point gRetiredHardDeadline;
 
 std::string             gInstrumentId{};
 int                     gOctave{0}; // session transpose given to open()
-std::bitset<gi::kCells> gPressed{}; // notes held down
+std::bitset<64> gPressed{}; // notes held down
 int                     gHover{-1}; // cell under the cursor, -1 outside
 
 // Every press swallowed while open is remembered so its release is swallowed
@@ -301,8 +323,9 @@ void closeLocked() {
 // cellForPoint divides by the sizes it is given, so the gap belongs to the cell
 // before it, matching the rects that are drawn.
 int cellAtPoint(ScreenView& view, float x, float y) {
-    auto const geo = computeGeometry(view);
-    return gi::cellForPoint(x, y, geo.gridX(), geo.gridY(), kStrideX, kStrideY);
+    auto const& def = currentDefLocked();
+    auto const  geo = computeGeometry(view, def);
+    return gi::cellForPoint(def, x, y, geo.gridX(), geo.gridY(), kStrideX, kStrideY);
 }
 
 std::pair<float, float> toGuiLocked(float x, float y) {
@@ -336,26 +359,27 @@ void consumeInputLocked(ScreenView& view) {
 // --- Panel ------------------------------------------------------------------
 
 void renderPanel(MinecraftUIRenderContext& ctx, ScreenView& view) {
-    auto const  geo  = computeGeometry(view);
     auto const& cfg  = modConfig();
     auto const& def  = currentDefLocked();
+    auto const  geo  = computeGeometry(view, def);
 
     if (cfg.showBackground) {
-        fillRect(ctx, geo.left, geo.top, kPanelW, kPanelH, kPanel, 0.97f);
+        fillRect(ctx, geo.left, geo.top, geo.panelW, geo.panelH, kPanel, 0.97f);
     }
-    frameRect(ctx, geo.left, geo.top, kPanelW, kPanelH, kFrame);
+    frameRect(ctx, geo.left, geo.top, geo.panelW, geo.panelH, kFrame);
 
     // Header: instrument name, cycle hint, live transpose on the right.
     float const nameSize = def.displayName.size() > 18 ? 0.95f : 1.3f;
-    drawLabel(ctx, geo.left + kPad, geo.top + 8.f, kPanelW - kPad * 2.f, std::string{def.displayName}, kText, ::ui::TextAlignment::Left, nameSize);
-    drawLabel(ctx, geo.left + kPad, geo.top + 29.f, kPanelW * 0.55f, "Tab: next instrument", kDim, ::ui::TextAlignment::Left, 0.7f);
-    drawLabel(ctx, geo.left + kPanelW - kPad - 54.f, geo.top + 27.f, 54.f, transposeTextLocked(), kAccent, ::ui::TextAlignment::Right, 0.9f);
+    drawLabel(ctx, geo.left + kPad, geo.top + 8.f, geo.panelW - kPad * 2.f, std::string{def.displayName}, kText, ::ui::TextAlignment::Left, nameSize);
+    drawLabel(ctx, geo.left + kPad, geo.top + 29.f, geo.panelW * 0.55f, "Tab: next instrument", kDim, ::ui::TextAlignment::Left, 0.7f);
+    drawLabel(ctx, geo.left + geo.panelW - kPad - 54.f, geo.top + 27.f, 54.f, transposeTextLocked(), kAccent, ::ui::TextAlignment::Right, 0.9f);
 
     // Grid: col 0 is the left (lowest) octave; row 0 is the top row, so pitch
-    // ascends upward inside a column and the bottom row is C.
-    for (int col = 0; col < gi::kCols; ++col) {
-        for (int row = 0; row < gi::kRows; ++row) {
-            int const  cell    = gi::cellAt(col, row);
+    // ascends upward inside a column and the bottom row is C. The djem djem
+    // drum is laid out as its two recorded rows instead.
+    for (int col = 0; col < geo.cols; ++col) {
+        for (int row = 0; row < geo.rows; ++row) {
+            int const  cell    = gi::cellAt(def, col, row);
             bool const active  = gPressed.test(static_cast<size_t>(cell));
             bool const hovered = (cell == gHover);
 
@@ -364,7 +388,7 @@ void renderPanel(MinecraftUIRenderContext& ctx, ScreenView& view) {
             fillRect(ctx, x, y, kCellW, kCellH, active ? kCellActive : (hovered ? kCellHover : kCellIdle), 0.92f);
             frameRect(ctx, x, y, kCellW, kCellH, active ? kAccent : kFrame, active ? 1.f : 0.65f);
             if (cfg.showKeyLabels) {
-                drawLabel(ctx, x + 4.f, y + 2.f, kCellW - 8.f, std::string{gi::keyLabelFor(cell)}, active ? kText : kDim, ::ui::TextAlignment::Left, 0.65f);
+                drawLabel(ctx, x + 4.f, y + 2.f, kCellW - 8.f, std::string{gi::keyLabelFor(def, cell)}, active ? kText : kDim, ::ui::TextAlignment::Left, 0.65f);
             }
         }
     }
@@ -372,8 +396,8 @@ void renderPanel(MinecraftUIRenderContext& ctx, ScreenView& view) {
     drawLabel(
         ctx,
         geo.left + kPad,
-        geo.top + kHeaderH + kGridH + 5.f,
-        kPanelW - kPad * 2.f,
+        geo.top + kHeaderH + geo.gridH + 5.f,
+        geo.panelW - kPad * 2.f,
         "Esc close   Shift/Alt transpose   Tab next",
         kDim,
         ::ui::TextAlignment::Center,
@@ -600,6 +624,18 @@ bool InstrumentScreen::install() {
                 gRetiredRendered = false;
             }
         }
+        // Hedge while the screen is unverified: if cancelling the vanilla dialog's
+        // own render does not take effect on this build, drawing again after
+        // everything keeps the panel visible on top of that dialog instead of
+        // behind it. Harmless when the cancel does work: the same pixels again.
+        if (gScene && ownsTopLocked()) {
+            static bool loggedAfterDraw = false;
+            diagOnce(loggedAfterDraw, "render: drawing the panel after the vanilla pass");
+            if (gClient) {
+                gInvScale = gClient->getGuiData()->mInvGuiScale;
+            }
+            renderPanel(event.uiRenderContext(), event.screenView());
+        }
         // Alive but no longer on top: it can never become usable again.
         if (gScene && &event.uiRenderContext().mClient == gClient && !ownsTopLocked()) {
             if (gSeen || std::chrono::steady_clock::now() - gOpenedAt > std::chrono::seconds(3)) {
@@ -674,7 +710,7 @@ bool InstrumentScreen::install() {
             break;
         }
 
-        int const cell = gi::cellForKeyCode(key);
+        int const cell = gi::cellForKeyCode(currentDefLocked(), key);
         if (cell >= 0 && gNotes.size() < kMaxQueuedNotes) {
             gNotes.push_back({cell, liveTransposeLocked(), down});
         }

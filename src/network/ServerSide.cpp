@@ -141,7 +141,7 @@ public:
         if (def == nullptr) {
             return;
         }
-        if (packet.mCell < 0 || packet.mCell >= gi::kCells) {
+        if (packet.mCell < 0 || packet.mCell >= gi::cellsOf(*def)) {
             return;
         }
         relayNote(*player, *def, packet.mCell, packet.mTransposeOctaves, packet.mVolume);

@@ -6,8 +6,8 @@
 
 namespace gi {
 
-// The Java mod uses a 3 column x 7 row note grid (three octaves, C..B).
-// Column 0 is the lowest octave, column 2 the highest.
+// The three-octave instruments use a 3 column x 7 row note grid (three
+// octaves, C..B). Column 0 is the lowest octave, column 2 the highest.
 inline constexpr int kRows  = 7;
 inline constexpr int kCols  = 3;
 inline constexpr int kCells = kRows * kCols;
@@ -20,6 +20,12 @@ struct InstrumentDef {
     bool             percussion;  // drums: no octave wrapping, no transposition
     bool             named;       // samples are named ("don"/"ka") instead of numbered
     bool             hasStereo;   // a *_stereo take of every sample exists
+    // Grid shape. rowMajor grids number their cells left to right, top to
+    // bottom (the djem djem drum: its eight samples are recorded in that
+    // order); the three-octave grids number them bottom up inside a column.
+    int  rows;
+    int  cols;
+    bool rowMajor;
 };
 
 std::span<InstrumentDef const> allInstruments();
@@ -27,6 +33,21 @@ std::span<InstrumentDef const> allInstruments();
 InstrumentDef const* findInstrument(std::string_view id);
 InstrumentDef const& instrumentAt(int index);
 int                  instrumentIndex(std::string_view id);
+
+inline int cellsOf(InstrumentDef const& def) { return def.rows * def.cols; }
+inline int rowsOf(InstrumentDef const& def) { return def.rows; }
+inline int colsOf(InstrumentDef const& def) { return def.cols; }
+
+// The cell a grid position maps to. Row 0 is always the top row on screen.
+inline int cellAt(InstrumentDef const& def, int col, int row) {
+    return def.rowMajor ? row * def.cols + col : col * def.rows + (def.rows - 1 - row);
+}
+inline int colForCell(InstrumentDef const& def, int cell) {
+    return def.rowMajor ? cell % def.cols : cell / def.rows;
+}
+inline int rowForCell(InstrumentDef const& def, int cell) {
+    return def.rowMajor ? cell / def.cols : def.rows - 1 - (cell % def.rows);
+}
 
 // Sound definition key for a grid cell, e.g. "genshin.windsong_lyre.14".
 // Percussion instruments with named samples use "genshin.glorious_drum.don".
@@ -36,27 +57,16 @@ std::string soundNameFor(InstrumentDef const& def, int cell, bool stereo = false
 // octaves (cell 8 of an 8 sample instrument is sample 0 one octave up).
 float pitchFor(InstrumentDef const& def, int cell, int transposeOctaves);
 
-// Grid geometry. A column is one octave and a row one note; columns run left to
-// right from the lowest octave to the highest, and inside a column pitch
-// ascends upward (bottom row = C, top row = B), exactly like the three staves
-// of the Java mod.
-//
-//   row 0   M  J  U
-//   ...
-//   row 6   Z  A  Q
-inline int cellAt(int col, int row) { return col * kRows + (kRows - 1 - row); }
-inline int colForCell(int cell) { return cell / kRows; }
-inline int rowForCell(int cell) { return kRows - 1 - (cell % kRows); }
-
 // Keyboard / mouse mapping. Returns the cell for a Win32 virtual key code,
-// or -1 when the key is not part of the instrument keyboard.
-int cellForKeyCode(int vkCode);
+// or -1 when the key is not part of this instrument's keyboard.
+int cellForKeyCode(InstrumentDef const& def, int vkCode);
 
 // One character label per cell, following the physical layout:
-// Z X C V B N M / A S D F G H J / Q W E R T Y U.
-char const* keyLabelFor(int cell);
+// Z X C V B N M / A S D F G H J / Q W E R T Y U for the three-octave grid,
+// A S D F / Q W E R for the djem djem drum.
+char const* keyLabelFor(InstrumentDef const& def, int cell);
 
 // Mouse hit test on the rendered grid (GUI units).
-int cellForPoint(float x, float y, float gridX, float gridY, float cellW, float cellH);
+int cellForPoint(InstrumentDef const& def, float x, float y, float gridX, float gridY, float cellW, float cellH);
 
 } // namespace gi

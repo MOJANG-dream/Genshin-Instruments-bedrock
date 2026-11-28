@@ -84,7 +84,8 @@ void PlayNotePacket::write(::BinaryStream& stream) const {
     mCell             = *cell;
     mTransposeOctaves = std::clamp(*transpose, -2, 2);
     mVolume           = std::clamp(*volume, 0.0f, 2.0f);
-    mValid            = gi::findInstrument(mInstrument) != nullptr && mCell >= 0 && mCell < gi::kCells;
+    auto const* def   = gi::findInstrument(mInstrument);
+    mValid            = def != nullptr && mCell >= 0 && mCell < gi::cellsOf(*def);
     return {};
 }
 
