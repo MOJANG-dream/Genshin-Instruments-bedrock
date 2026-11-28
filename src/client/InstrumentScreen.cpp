@@ -18,7 +18,9 @@
 #include "ll/api/event/input/KeyInputEvent.h"
 #include "ll/api/event/input/MouseInputEvent.h"
 #include "ll/api/event/render/UIRenderEvent.h"
+#include "ll/api/io/Logger.h"
 #include "ll/api/memory/Hook.h"
+#include "ll/api/mod/NativeMod.h"
 #include "ll/api/service/TargetedBedrock.h"
 #include "ll/api/thread/ClientThreadExecutor.h"
 
@@ -62,6 +64,24 @@ namespace gi::client {
 namespace {
 
 using namespace ll::event;
+
+// --- Diagnostics (temporary, gated by config.enableDebugLog) ----------------
+// The screen is unverified on a real client, so every gate that can silently
+// swallow the open request reports itself while debugging is on.
+
+void diag(std::string_view what) {
+    if (auto mod = ll::mod::NativeMod::current()) {
+        mod->getLogger().info("[gi] {}", what);
+    }
+}
+
+void diagOnce(bool& flag, std::string_view what) {
+    if (flag) {
+        return;
+    }
+    flag = true;
+    diag(what);
+}
 
 // --- Palette and geometry (GUI units) ---------------------------------------
 
@@ -395,6 +415,8 @@ LL_TYPE_INSTANCE_HOOK(
     } restore{tRenderView};
     {
         std::lock_guard lock(gMutex);
+        static bool loggedAlive = false;
+        diagOnce(loggedAlive, "render: $render hook is alive");
         gClientThreadId = std::this_thread::get_id(); // this is the client thread
         if (gRetired.get() == this) {
             gRetiredRendered = true;
@@ -402,6 +424,10 @@ LL_TYPE_INSTANCE_HOOK(
         // A scene on its way out must stay cancelled as well, otherwise the
         // borrowed vanilla dialog shows up for a frame while it leaves.
         tRenderView = (gScene.get() == this || gRetired.get() == this) ? mScreenView.get() : nullptr;
+        if (gScene.get() == this) {
+            static bool loggedRender = false;
+            diagOnce(loggedRender, "render: $render reached for the borrowed scene");
+        }
     }
     origin(screenContext, renderObj);
 }
@@ -449,6 +475,7 @@ LL_TYPE_INSTANCE_HOOK(SceneBackgroundHook, HookPriority::Normal, UIScene, &UISce
 void openSceneOnClientThread(std::string instrumentId, int transposeOctaves) {
     auto clientInstance = ll::service::bedrock::getClientInstance();
     if (!clientInstance) {
+        diag("open: no client instance");
         return;
     }
 
@@ -464,6 +491,7 @@ void openSceneOnClientThread(std::string instrumentId, int transposeOctaves) {
         }
         if (gScene) {
             if (gClosing) {
+                diag("open: a pop is already in flight");
                 return; // a pop is already in flight, do not revive that scene
             }
             // Already open: behave as an instrument switch and keep the scene.
@@ -471,17 +499,20 @@ void openSceneOnClientThread(std::string instrumentId, int transposeOctaves) {
             gOctave       = transposeOctaves;
             gPressed.reset();
             gNotes.clear();
+            diag("open: switched instrument on the open screen");
             return;
         }
 
         // Only stack on the HUD or the chat screen, never on another screen.
         std::string screenName = clientInstance->getScreenName();
         if (screenName.rfind("hud_screen", 0) != 0 && screenName != "chat_screen") {
+            diag("open: refused, current screen is '" + screenName + "'");
             return;
         }
 
         auto scene = clientInstance->getSceneFactory().createCommonDialogInfoScreen("Instrument", "");
         if (!scene) {
+            diag("open: createCommonDialogInfoScreen returned null");
             return;
         }
 
@@ -497,6 +528,7 @@ void openSceneOnClientThread(std::string instrumentId, int transposeOctaves) {
     }
 
     clientInstance->getCurrentSceneStack()->pushScreen(std::move(toPush), false);
+    diag("open: pushed the borrowed dialog");
 }
 
 } // namespace
@@ -509,9 +541,13 @@ InstrumentScreen& InstrumentScreen::getInstance() {
 }
 
 bool InstrumentScreen::install() {
-    SceneRenderHook::hook();
-    SceneExitHook::hook();
-    SceneBackgroundHook::hook();
+    // hook() returns 0 on success; a failed hook is silent otherwise, and the
+    // screen then only shows the borrowed vanilla dialog.
+    int const renderHook     = SceneRenderHook::hook();
+    int const exitHook       = SceneExitHook::hook();
+    int const backgroundHook = SceneBackgroundHook::hook();
+    diag("install: hooks render=" + std::to_string(renderHook) + " exit=" + std::to_string(exitHook) +
+         " background=" + std::to_string(backgroundHook));
 
     auto& bus = EventBus::getInstance();
     gListeners.clear();
@@ -519,10 +555,30 @@ bool InstrumentScreen::install() {
     // Draw the grid instead of the borrowed dialog.
     gListeners.emplace_back(bus.emplaceListener<BeforeUIRenderEvent>([](BeforeUIRenderEvent& event) {
         std::lock_guard lock(gMutex);
-        if (!gScene || tRenderView != &event.screenView()) {
+        if (!gScene) {
             return;
         }
+        if (tRenderView != &event.screenView()) {
+            // Fallback: the $render hook is the reference's way of learning which
+            // ScreenView belongs to the borrowed scene. If that hook is not hit on
+            // this build, accept the view of the scene that is on top instead of
+            // drawing nothing at all.
+            bool onTop = false;
+            if (gClient) {
+                auto const& stack = gClient->getCurrentSceneStack();
+                onTop             = stack->getTopScene() == gScene.get();
+            }
+            if (!onTop) {
+                static bool loggedMismatch = false;
+                diagOnce(loggedMismatch, "render: BeforeUIRenderEvent without a matching tRenderView");
+                return;
+            }
+            static bool loggedFallback = false;
+            diagOnce(loggedFallback, "render: drawing through the top-scene fallback");
+        }
         event.cancel();
+        static bool loggedDraw = false;
+        diagOnce(loggedDraw, "render: drawing the panel");
         gSeen = true;
         if (gClient) {
             gInvScale = gClient->getGuiData()->mInvGuiScale;

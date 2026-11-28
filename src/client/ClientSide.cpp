@@ -1,4 +1,4 @@
-﻿#include "client/ClientSide.h"
+#include "client/ClientSide.h"
 
 #ifdef LL_PLAT_C
 
@@ -10,7 +10,12 @@
 #include "ll/api/event/EventBus.h"
 #include "ll/api/event/client/ClientJoinLevelEvent.h"
 #include "ll/api/event/input/KeyInputEvent.h"
+#include "ll/api/io/Logger.h"
+#include "ll/api/mod/NativeMod.h"
 
+#include <cstdio>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace gi::client {
@@ -19,10 +24,25 @@ namespace {
 std::vector<ll::event::ListenerPtr> gListeners;
 int                                 gCycleIndex = 0;
 
+// Temporary diagnostics (config.enableDebugLog): the key path is the one that
+// silently does nothing on a real client, so it reports every press it sees.
+void diagKey(std::string_view what) {
+    if (auto mod = ll::mod::NativeMod::current()) {
+        mod->getLogger().info("[gi] {}", what);
+    }
+}
+
+std::string hexKey(int key) {
+    char buffer[16]{};
+    std::snprintf(buffer, sizeof(buffer), "0x%02X", key);
+    return buffer;
+}
+
 class OpenInstrumentHandler final
 : public ll::network::PacketHandlerBase<OpenInstrumentHandler, net::OpenInstrumentPacket> {
 public:
     void handlePacket(::NetworkIdentifier const&, ::NetEventCallback&, ::ll::network::PacketSide, net::OpenInstrumentPacket const& packet) const {
+        diagKey("open packet: " + packet.mInstrument);
         if (gi::findInstrument(packet.mInstrument) == nullptr) {
             return;
         }
@@ -59,12 +79,14 @@ void onKey(ll::event::input::KeyInputEvent& event) {
 
     auto const& config = modConfig();
     int const   key    = event.keyCode();
+    diagKey("key down " + hexKey(key));
 
     if (config.enableKeybind && key == config.openKey) {
         event.cancel();
         auto const id = gi::findInstrument(config.defaultInstrument) != nullptr
                           ? std::string_view{config.defaultInstrument}
                           : gi::instrumentAt(0).id;
+        diagKey("key: open " + std::string{id});
         openWith(id);
         return;
     }
@@ -73,6 +95,7 @@ void onKey(ll::event::input::KeyInputEvent& event) {
         event.cancel();
         auto const instruments = gi::allInstruments();
         gCycleIndex            = (gCycleIndex + 1) % static_cast<int>(instruments.size());
+        diagKey("key: cycle to " + std::string{instruments[static_cast<size_t>(gCycleIndex)].id});
         openWith(instruments[static_cast<size_t>(gCycleIndex)].id);
     }
 }

@@ -28,6 +28,12 @@ namespace {
 
 constexpr int kProtocolVersion = 1;
 
+// Temporary diagnostics: the item trigger and the handshake are the two places
+// where "right click does nothing" hides. Always on for this build.
+void diag(std::string_view what) {
+    GenshinInstrumentsMod::getInstance().getSelf().getLogger().info("[gi] {}", what);
+}
+
 // Network identifiers of clients that announced themselves with HelloPacket.
 // Only those ever receive custom packets, so a vanilla client never sees one.
 std::unordered_set<::NetworkIdentifier>& supportedClients() {
@@ -109,12 +115,15 @@ class HelloHandler final : public ll::network::PacketHandlerBase<HelloHandler, n
 public:
     void handlePacket(::NetworkIdentifier const& netId, ::NetEventCallback&, ::ll::network::PacketSide, net::HelloPacket const& packet) const {
         if (packet.mProtocol != kProtocolVersion) {
+            diag("hello: protocol mismatch");
             return;
         }
         if (playerFromNetId(netId) == nullptr) {
+            diag("hello: no player for that network id");
             return;
         }
         supportedClients().insert(netId);
+        diag("hello: client registered");
     }
 };
 
@@ -159,10 +168,12 @@ void onUseItem(ll::event::player::PlayerUseItemEvent& event) {
     }
     auto const& netId = event.self().getNetworkIdentifier();
     if (playerFromNetId(netId) == nullptr) {
+        diag("use item: no player for that network id");
         return;
     }
     // A vanilla client would not understand a LeviLamina runtime packet.
     if (!supportedClients().contains(netId)) {
+        diag("use item: " + instrument + " but this client never said hello");
         return;
     }
     // Swallow the use so the item never enters a vanilla use state.
@@ -172,6 +183,7 @@ void onUseItem(ll::event::player::PlayerUseItemEvent& event) {
     packet.mInstrument       = instrument;
     packet.mTransposeOctaves = modConfig().transposeOctaves;
     packet.sendTo(event.self());
+    diag("use item: asked the client to open " + instrument);
 }
 
 [[maybe_unused]] HelloHandler    gHelloHandler;

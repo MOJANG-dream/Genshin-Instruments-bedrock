@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2
+
+实机反馈「没有界面、没有声音」，这一版先加诊断日志定位，不改变功能。
+
+- 客户端：记录每次按键的 keyCode、打开界面时每道门禁的结果（当前屏幕名、`createCommonDialogInfoScreen` 是否返回空）、
+  `UIScene::$render` 钩子是否命中我们的场景、`BeforeUIRenderEvent` 是否与场景视图匹配、面板是否真的开始绘制。
+- 发声：记录 `playUI` 请求的事件名、音量、音高与返回的 handle（0 表示引擎没有起播）。
+- 服务端：记录握手（`hello`）、物品右键（是否因为客户端未握手而被跳过）、以及下发的打开/音符请求。
+- 日志全部带 `[gi]` 前缀，过滤 `genshin-instruments` 即可。
+
 ## 0.1.1
 
 修复 LeviLauncher 导入时报「manifest.json 无效或缺少必要字段」。
