@@ -121,10 +121,18 @@ bool install() {
     // by the game itself, so the textures and the sound events exist even when the
     // composed stack is built before this mod registered its packs.
     bool changed = false;
-    changed |= copyIntoDevelopmentFolder(packs / "RP" / "genshin_instruments",
-                                         std::string{repo->getDevelopmentResourcePacksPath().get()});
-    changed |= copyIntoDevelopmentFolder(packs / "BP" / "genshin_instruments",
-                                         std::string{repo->getDevelopmentBehaviorPacksPath().get()});
+    // getDevelopment...Path() returns a const PathBuffer; PathBuffer::get() is not
+    // const, and its explicit conversion operator is the const-friendly way in.
+    auto const& devResources = repo->getDevelopmentResourcePacksPath();
+    auto const& devBehavior  = repo->getDevelopmentBehaviorPacksPath();
+    changed |= copyIntoDevelopmentFolder(
+        packs / "RP" / "genshin_instruments",
+        std::string{static_cast<std::string const&>(devResources)}
+    );
+    changed |= copyIntoDevelopmentFolder(
+        packs / "BP" / "genshin_instruments",
+        std::string{static_cast<std::string const&>(devBehavior)}
+    );
     if (changed) {
         repo->refreshPacks();
         diag("packs: refreshed the pack list");
