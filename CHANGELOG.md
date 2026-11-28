@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.4
+
+声音与贴图：资源包现在真的会被游戏加载。
+
+- 之前只把包注册进包仓库（`addCustomResourcePackPath`），但没有触发重扫，也没有让游戏认为它该被启用，
+  所以游戏里既没有物品图标（紫黑格），`playUI` 请求的音效事件也不存在 —— 按键被吞、没有声。
+  现在启动时把 `packs/RP` 与 `packs/BP` 复制到游戏自己的开发包目录（`development_resource_packs` /
+  `development_behavior_packs`）并调用 `refreshPacks()`，开发包对所有世界默认启用。
+- 发声改成走服务端 `PlaySoundPacket`，并且**默认也发回给演奏者本人**（`relayToSelf`），
+  这条是原版通路，客户端一定会播；本地 `playUI` 保留为可选（`playLocally`，默认关，避免双声）。
+- 界面按 Java 版补充：每个键显示音名（三列七行是 C..B，Djem Djem Drum 用它的 `NOTE_LAYOUT`），
+  非打击乐器的网格后面叠了五线谱横线。
+
 ## 0.1.3
 
 按 Java 版对齐不同乐器的琴键布局，Djem Djem Drum 不再是三列七行。

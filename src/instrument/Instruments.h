@@ -66,6 +66,11 @@ int cellForKeyCode(InstrumentDef const& def, int vkCode);
 // A S D F / Q W E R for the djem djem drum.
 char const* keyLabelFor(InstrumentDef const& def, int cell);
 
+// The note name printed on the key, as the Java mod prints it: C D E F G A B for
+// the three-octave grid (row 0 is the top row, so it starts at B), and the
+// recorded names ("C#", "Bb", ...) for the djem djem drum.
+char const* noteNameFor(InstrumentDef const& def, int cell);
+
 // Mouse hit test on the rendered grid (GUI units).
 int cellForPoint(InstrumentDef const& def, float x, float y, float gridX, float gridY, float cellW, float cellH);
 

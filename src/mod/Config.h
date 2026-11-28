@@ -18,8 +18,9 @@ struct Config {
     std::string defaultInstrument = "windsong_lyre";
 
     // --- playback ------------------------------------------------------------
-    bool  playLocally       = true; // client plays its own notes for zero latency
-    bool  relayToNearby     = true; // server echoes notes to nearby players
+    bool  playLocally       = false; // client plays its own notes for zero latency
+    bool  relayToNearby     = true;  // server echoes notes to nearby players
+    bool  relayToSelf       = true;  // ...including the player who played it
     float relayVolumeScale  = 1.0f;
     float localVolumeScale  = 1.0f;
     int   relayRadius       = 32;   // blocks

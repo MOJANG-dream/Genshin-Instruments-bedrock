@@ -92,7 +92,7 @@ void relayNote(::Player& player, gi::InstrumentDef const& def, int cell, int tra
     ::PacketSender& sender = minecraft->mPacketSender;
 
     level->forEachPlayer([&](::Player& other) {
-        if (&other == &player) {
+        if (&other == &player && !config.relayToSelf) {
             return true;
         }
         if (other.getDimensionId() != dim) {

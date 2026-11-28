@@ -135,6 +135,27 @@ char const* keyLabelFor(InstrumentDef const& def, int cell) {
     return kKeyLabels[static_cast<size_t>(cell)];
 }
 
+// Note names as the Java mod draws them on the keys. The three-octave grid has
+// the lowest note (C) at the bottom, so row 0 on screen is B.
+constexpr std::array<char const*, kRows> kNoteNames{{"C", "D", "E", "F", "G", "A", "B"}};
+
+// DjemDjemDrumScreen.NOTE_LAYOUT in the Java mod.
+constexpr std::array<char const*, 8> kDjemNoteNames{{"C#", "C#", "F", "Bb", "C#", "C", "F", "F"}};
+
+char const* noteNameFor(InstrumentDef const& def, int cell) {
+    if (cell < 0 || cell >= cellsOf(def)) {
+        return "";
+    }
+    if (usesDjemLayout(def)) {
+        return kDjemNoteNames[static_cast<size_t>(cell)];
+    }
+    int const row = rowForCell(def, cell);
+    if (row < 0 || row >= def.rows) {
+        return "";
+    }
+    return kNoteNames[static_cast<size_t>(def.rows - 1 - row)];
+}
+
 int cellForPoint(InstrumentDef const& def, float x, float y, float gridX, float gridY, float cellW, float cellH) {
     if (cellW <= 0.f || cellH <= 0.f) {
         return -1;

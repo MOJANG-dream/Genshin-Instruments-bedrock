@@ -94,6 +94,7 @@ constexpr Rgb kPanel{0.10f, 0.11f, 0.13f}, kFrame{0.36f, 0.37f, 0.40f};
 constexpr Rgb kText{0.93f, 0.94f, 0.95f}, kDim{0.60f, 0.62f, 0.65f};
 constexpr Rgb kAccent{0.42f, 0.76f, 0.30f}, kCellIdle{0.16f, 0.17f, 0.19f};
 constexpr Rgb kCellHover{0.25f, 0.27f, 0.31f}, kCellActive{0.30f, 0.56f, 0.23f};
+constexpr Rgb kNote{0.80f, 0.82f, 0.86f}, kStaff{0.75f, 0.78f, 0.82f};
 
 mce::Color color(Rgb c, float a = 1.f) { return {c.r, c.g, c.b, a}; }
 
@@ -387,9 +388,35 @@ void renderPanel(MinecraftUIRenderContext& ctx, ScreenView& view) {
             float const y = geo.cellY(row);
             fillRect(ctx, x, y, kCellW, kCellH, active ? kCellActive : (hovered ? kCellHover : kCellIdle), 0.92f);
             frameRect(ctx, x, y, kCellW, kCellH, active ? kAccent : kFrame, active ? 1.f : 0.65f);
-            if (cfg.showKeyLabels) {
-                drawLabel(ctx, x + 4.f, y + 2.f, kCellW - 8.f, std::string{gi::keyLabelFor(def, cell)}, active ? kText : kDim, ::ui::TextAlignment::Left, 0.65f);
+        }
+    }
+
+    // Staff lines over the keys, the way the Java mod draws the clef background
+    // behind each column. Percussion instruments have no staff.
+    if (cfg.showBackground && !def.percussion) {
+        float const spacing = geo.gridH / 10.f;
+        for (int col = 0; col < geo.cols; ++col) {
+            float const x = geo.cellX(col);
+            for (int line = 0; line < 5; ++line) {
+                float const y = geo.gridY() + (static_cast<float>(line) * 2.f + 1.f) * spacing;
+                fillRect(ctx, x, y, kCellW, 1.f, kStaff, 0.18f);
             }
+        }
+    }
+
+    // Note name centred in the key and the key letter in its corner, which is
+    // what makes the grid readable the way the Java screen is.
+    for (int col = 0; col < geo.cols; ++col) {
+        for (int row = 0; row < geo.rows; ++row) {
+            int const  cell   = gi::cellAt(def, col, row);
+            bool const active = gPressed.test(static_cast<size_t>(cell));
+
+            float const x = geo.cellX(col);
+            float const y = geo.cellY(row);
+            if (cfg.showKeyLabels) {
+                drawLabel(ctx, x + 3.f, y + 1.f, kCellW - 6.f, std::string{gi::keyLabelFor(def, cell)}, active ? kText : kDim, ::ui::TextAlignment::Left, 0.6f);
+            }
+            drawLabel(ctx, x, y + 7.f, kCellW, std::string{gi::noteNameFor(def, cell)}, active ? kText : kNote, ::ui::TextAlignment::Center, 0.9f);
         }
     }
 
